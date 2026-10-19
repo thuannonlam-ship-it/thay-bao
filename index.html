@@ -3,59 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Subway Runner Mini</title>
+    <title>Subway Runner - Custom Character</title>
     <style>
         body {
             margin: 0;
-            background: #222;
+            background: #111;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             color: white;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             flex-direction: column;
+            overflow: hidden;
         }
         canvas {
-            border: 4px solid #fff;
-            background: #333;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border: 3px solid #00ffcc;
+            border-radius: 8px;
+            background: #222;
+            box-shadow: 0 0 25px rgba(0, 255, 204, 0.3);
         }
         #instructions {
-            margin-top: 10px;
-            font-size: 16px;
-            color: #ddd;
+            margin-top: 12px;
+            font-size: 15px;
+            color: #aaa;
         }
     </style>
 </head>
 <body>
 
-    <h1>Subway Runner Mini</h1>
+    <h1>Subway Runner - Character Edition</h1>
     <canvas id="gameCanvas" width="400" height="600"></canvas>
-    <div id="instructions">Dùng phím mũi tên <b>Trái / Phải</b> để di chuyển làn!</div>
+    <div id="instructions">Dùng phím mũi tên <b>Trái / Phải</b> để chuyển làn đường!</div>
 
     <script>
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
-        // 3 làn đường: X tương ứng với tâm mỗi làn
+        // Tải ảnh nhân vật
+        const playerImg = new Image();
+        playerImg.src = 'player.jpg'; // Tên file ảnh nhân vật trong cùng thư mục
+
+        // 3 làn đường: vị trí X tâm làn
         const lanes = [80, 200, 320];
-        let currentLane = 1; // Bắt đầu ở làn giữa
+        let currentLane = 1;
 
         let player = {
-            y: 500,
-            width: 40,
-            height: 60,
-            color: "#00ffcc"
+            y: 480,
+            width: 50,
+            height: 70
         };
 
         let obstacles = [];
         let score = 0;
-        let gameSpeed = 5;
+        let gameSpeed = 6;
         let isGameOver = false;
 
-        // Xử lý phím bấm
+        // Bắt sự kiện phím bấm
         document.addEventListener("keydown", (e) => {
             if (isGameOver) {
                 resetGame();
@@ -68,48 +72,42 @@
             }
         });
 
-        // Tạo chướng ngại vật ngẫu nhiên
         function spawnObstacle() {
             let randomLane = Math.floor(Math.random() * lanes.length);
             obstacles.push({
                 lane: randomLane,
                 y: -100,
-                width: 40,
-                height: 40,
+                width: 45,
+                height: 45,
                 color: "#ff3366"
             });
         }
 
-        // Đặt lại game khi thua
         function resetGame() {
             obstacles = [];
             score = 0;
-            gameSpeed = 5;
+            gameSpeed = 6;
             currentLane = 1;
             isGameOver = false;
             loop();
         }
 
-        // Vòng lặp game chính
         let spawnTimer = 0;
         function update() {
             if (isGameOver) return;
 
-            // Tăng tốc độ theo điểm số
-            gameSpeed = 5 + Math.floor(score / 500);
+            gameSpeed = 6 + Math.floor(score / 400);
 
-            // Sinh chướng ngại vật định kỳ
             spawnTimer++;
-            if (spawnTimer > 60 - Math.min(30, Math.floor(score / 300))) {
+            if (spawnTimer > 50 - Math.min(25, Math.floor(score / 300))) {
                 spawnObstacle();
                 spawnTimer = 0;
             }
 
-            // Cập nhật vị trí chướng ngại vật
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 obstacles[i].y += gameSpeed;
 
-                // Kiểm tra va chạm (Player ở làn nào, có trùng chướng ngại vật không)
+                // Xử lý va chạm
                 if (
                     obstacles[i].lane === currentLane &&
                     obstacles[i].y + obstacles[i].height > player.y &&
@@ -118,32 +116,34 @@
                     isGameOver = true;
                 }
 
-                // Xóa chướng ngại vật khi ra khỏi màn hình
                 if (obstacles[i].y > canvas.height) {
                     obstacles.splice(i, 1);
-                    score += 100; // Cộng điểm khi né được
+                    score += 100;
                 }
             }
         }
 
         function draw() {
-            // Xóa màn hình
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Vẽ các đường phân làn
-            ctx.strokeStyle = "#555";
+            // Vẽ đường phân làn
+            ctx.strokeStyle = "#444";
             ctx.lineWidth = 2;
-            ctx.setLineDash([10, 10]);
+            ctx.setLineDash([15, 15]);
             ctx.beginPath();
             ctx.moveTo(140, 0); ctx.lineTo(140, canvas.height);
             ctx.moveTo(260, 0); ctx.lineTo(260, canvas.height);
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Vẽ nhân vật
+            // Vẽ nhân vật (ảnh chụp)
             let playerX = lanes[currentLane] - player.width / 2;
-            ctx.fillStyle = player.color;
-            ctx.fillRect(playerX, player.y, player.width, player.height);
+            if (playerImg.complete && playerImg.naturalWidth !== 0) {
+                ctx.drawImage(playerImg, playerX, player.y, player.width, player.height);
+            } else {
+                ctx.fillStyle = "#00ffcc";
+                ctx.fillRect(playerX, player.y, player.width, player.height);
+            }
 
             // Vẽ chướng ngại vật
             for (let obs of obstacles) {
@@ -152,20 +152,22 @@
                 ctx.fillRect(obsX, obs.y, obs.width, obs.height);
             }
 
-            // Hiển thị Điểm số
+            // Điểm số
             ctx.fillStyle = "white";
-            ctx.font = "20px Arial";
-            ctx.fillText("Điểm: " + score, 20, 30);
+            ctx.font = "bold 20px Arial";
+            ctx.fillText("Điểm: " + score, 20, 35);
 
-            // Nếu thua hiển thị Game Over
+            // Màn hình thua
             if (isGameOver) {
-                ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+                ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                ctx.fillStyle = "white";
-                ctx.font = "30px Arial";
+                ctx.fillStyle = "#ff3366";
+                ctx.font = "bold 32px Arial";
                 ctx.textAlign = "center";
                 ctx.fillText("THUA RỒI!", canvas.width / 2, canvas.height / 2 - 20);
+                
+                ctx.fillStyle = "white";
                 ctx.font = "16px Arial";
                 ctx.fillText("Nhấn phím bất kỳ để chơi lại", canvas.width / 2, canvas.height / 2 + 20);
                 ctx.textAlign = "left";
@@ -180,8 +182,7 @@
             }
         }
 
-        // Bắt đầu game
         loop();
     </script>
 </body>
-</html>v
+</html>
