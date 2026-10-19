@@ -1,104 +1,187 @@
-import streamlit as st
-import random
-import time
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subway Runner Mini</title>
+    <style>
+        body {
+            margin: 0;
+            background: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: white;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            flex-direction: column;
+        }
+        canvas {
+            border: 4px solid #fff;
+            background: #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #instructions {
+            margin-top: 10px;
+            font-size: 16px;
+            color: #ddd;
+        }
+    </style>
+</head>
+<body>
 
-# --- CẤU HÌNH TRANG ---
-st.set_page_config(
-    page_title="Thầy Bảo Đuổi Học Sinh",
-    page_icon="🏫",
-    layout="centered"
-)
+    <h1>Subway Runner Mini</h1>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+    <div id="instructions">Dùng phím mũi tên <b>Trái / Phải</b> để di chuyển làn!</div>
 
-st.title("🏫 Game: Thầy Bảo Đuổi Học Sinh")
-st.caption("Ứng dụng chạy trên Streamlit & Python")
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
 
-# --- TRẠNG THÁI GAME (SESSION STATE) ---
-if "score" not in st.session_state:
-    st.session_state.score = 0
-if "lives" not in st.session_state:
-    st.session_state.lives = 3
-if "teacher_looking" not in st.session_state:
-    st.session_state.teacher_looking = False
-if "game_over" not in st.session_state:
-    st.session_state.game_over = False
-if "log_msg" not in st.session_state:
-    st.session_state.log_msg = "Nhấn nút để bắt đầu hành động!"
+        // 3 làn đường: X tương ứng với tâm mỗi làn
+        const lanes = [80, 200, 320];
+        let currentLane = 1; // Bắt đầu ở làn giữa
 
-# --- HÀM XỬ LÝ GAME ---
-def reset_game():
-    st.session_state.score = 0
-    st.session_state.lives = 3
-    st.session_state.teacher_looking = False
-    st.session_state.game_over = False
-    st.session_state.log_msg = "Game mới đã bắt đầu! Hãy cẩn thận với Thầy Bảo."
+        let player = {
+            y: 500,
+            width: 40,
+            height: 60,
+            color: "#00ffcc"
+        };
 
-def change_teacher_state():
-    # 40% cơ hội thầy quay lại nhìn
-    st.session_state.teacher_looking = random.random() < 0.4
+        let obstacles = [];
+        let score = 0;
+        let gameSpeed = 5;
+        let isGameOver = false;
 
-def play_phone():
-    if st.session_state.game_over:
-        return
-    
-    change_teacher_state()
-    
-    if st.session_state.teacher_looking:
-        st.session_state.lives -= 1
-        st.session_state.log_msg = "❌ BỊ PHÁT HIỆN! Thầy Bảo đã ghi tên bạn vào sổ đầu bài!"
-        if st.session_state.lives <= 0:
-            st.session_state.game_over = True
-            st.session_state.log_msg = f"💀 GAME OVER! Bạn đã bị đuổi học với {st.session_state.score} điểm!"
-    else:
-        st.session_state.score += 10
-        st.session_state.log_msg = "📱 Lướt TikTok/Chơi game an toàn! +10 điểm."
+        // Xử lý phím bấm
+        document.addEventListener("keydown", (e) => {
+            if (isGameOver) {
+                resetGame();
+                return;
+            }
+            if (e.key === "ArrowLeft" && currentLane > 0) {
+                currentLane--;
+            } else if (e.key === "ArrowRight" && currentLane < lanes.length - 1) {
+                currentLane++;
+            }
+        });
 
-def study_hard():
-    if st.session_state.game_over:
-        return
-    
-    change_teacher_state()
-    
-    if st.session_state.teacher_looking:
-        st.session_state.score += 5
-        st.session_state.log_msg = "📚 Thầy Bảo đi qua và khen bạn chăm học! +5 điểm."
-    else:
-        st.session_state.log_msg = "📖 Bạn đang ngồi giả vờ học bài..."
+        // Tạo chướng ngại vật ngẫu nhiên
+        function spawnObstacle() {
+            let randomLane = Math.floor(Math.random() * lanes.length);
+            obstacles.push({
+                lane: randomLane,
+                y: -100,
+                width: 40,
+                height: 40,
+                color: "#ff3366"
+            });
+        }
 
-# --- GIAO DIỆN HIỂN THỊ ---
+        // Đặt lại game khi thua
+        function resetGame() {
+            obstacles = [];
+            score = 0;
+            gameSpeed = 5;
+            currentLane = 1;
+            isGameOver = false;
+            loop();
+        }
 
-# Bảng chỉ số
-col1, col2 = st.columns(2)
-with col1:
-    st.metric(label="🏆 Điểm số", value=st.session_state.score)
-with col2:
-    st.metric(label="❤️ Mạng còn lại", value=st.session_state.lives)
+        // Vòng lặp game chính
+        let spawnTimer = 0;
+        function update() {
+            if (isGameOver) return;
 
-st.markdown("---")
+            // Tăng tốc độ theo điểm số
+            gameSpeed = 5 + Math.floor(score / 500);
 
-# Cảnh báo trạng thái của Thầy
-if st.session_state.teacher_looking:
-    st.error("🚨 **CẢNH BÁO:** THẦY BẢO ĐANG QUAY LẠI NHÌN!")
-else:
-    st.success("😎 **AN TOÀN:** Thầy Bảo đang nhìn đi chỗ khác.")
+            // Sinh chướng ngại vật định kỳ
+            spawnTimer++;
+            if (spawnTimer > 60 - Math.min(30, Math.floor(score / 300))) {
+                spawnObstacle();
+                spawnTimer = 0;
+            }
 
-st.info(st.session_state.log_msg)
+            // Cập nhật vị trí chướng ngại vật
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                obstacles[i].y += gameSpeed;
 
-st.markdown("---")
+                // Kiểm tra va chạm (Player ở làn nào, có trùng chướng ngại vật không)
+                if (
+                    obstacles[i].lane === currentLane &&
+                    obstacles[i].y + obstacles[i].height > player.y &&
+                    obstacles[i].y < player.y + player.height
+                ) {
+                    isGameOver = true;
+                }
 
-# Nút thao tác
-if not st.session_state.game_over:
-    btn_col1, btn_col2 = st.columns(2)
-    with btn_col1:
-        st.button("📱 Lướt Điện Thoại (+10 điểm)", on_click=play_phone, use_container_width=True)
-    with btn_col2:
-        st.button("📚 Giả Vờ Học Bài (An toàn)", on_click=study_hard, use_container_width=True)
-else:
-    st.button("🔄 Chơi Lại", on_click=reset_game, type="primary", use_container_width=True)
+                // Xóa chướng ngại vật khi ra khỏi màn hình
+                if (obstacles[i].y > canvas.height) {
+                    obstacles.splice(i, 1);
+                    score += 100; // Cộng điểm khi né được
+                }
+            }
+        }
 
-# Hướng dẫn
-with st.expander("❓ Hướng dẫn cách chơi"):
-    st.write("""
-    1. **Lướt điện thoại:** Nhận được **10 điểm**, nhưng nếu Thầy Bảo đang nhìn thì sẽ bị **mất 1 mạng**.
-    2. **Giả vờ học bài:** An toàn 100%. Nếu Thầy Bảo quay lại nhìn đúng lúc bạn đang học, bạn nhận được **5 điểm thưởng**.
-    3. Mất hết **3 mạng** sẽ bị đuổi học (Game Over)!
-    """)
+        function draw() {
+            // Xóa màn hình
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Vẽ các đường phân làn
+            ctx.strokeStyle = "#555";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 10]);
+            ctx.beginPath();
+            ctx.moveTo(140, 0); ctx.lineTo(140, canvas.height);
+            ctx.moveTo(260, 0); ctx.lineTo(260, canvas.height);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Vẽ nhân vật
+            let playerX = lanes[currentLane] - player.width / 2;
+            ctx.fillStyle = player.color;
+            ctx.fillRect(playerX, player.y, player.width, player.height);
+
+            // Vẽ chướng ngại vật
+            for (let obs of obstacles) {
+                let obsX = lanes[obs.lane] - obs.width / 2;
+                ctx.fillStyle = obs.color;
+                ctx.fillRect(obsX, obs.y, obs.width, obs.height);
+            }
+
+            // Hiển thị Điểm số
+            ctx.fillStyle = "white";
+            ctx.font = "20px Arial";
+            ctx.fillText("Điểm: " + score, 20, 30);
+
+            // Nếu thua hiển thị Game Over
+            if (isGameOver) {
+                ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = "white";
+                ctx.font = "30px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText("THUA RỒI!", canvas.width / 2, canvas.height / 2 - 20);
+                ctx.font = "16px Arial";
+                ctx.fillText("Nhấn phím bất kỳ để chơi lại", canvas.width / 2, canvas.height / 2 + 20);
+                ctx.textAlign = "left";
+            }
+        }
+
+        function loop() {
+            update();
+            draw();
+            if (!isGameOver) {
+                requestAnimationFrame(loop);
+            }
+        }
+
+        // Bắt đầu game
+        loop();
+    </script>
+</body>
+</html>
